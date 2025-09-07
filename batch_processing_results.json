@@ -1,0 +1,45 @@
+{
+  "batch_info": {
+    "data_folder": "data",
+    "total_documents": 5,
+    "processed_successfully": 5,
+    "failed": 0,
+    "success_rate": "100.0%"
+  },
+  "results": [
+    {
+      "success": true,
+      "file": "data/folder3/NRIC_BACK.JPG",
+      "natural_output": "data/folder3/NRIC_BACK_extracted_data.json",
+      "document_type": "document"
+    },
+    {
+      "success": true,
+      "file": "data/folder4/Receipt - Invoice.pdf",
+      "natural_output": "data/folder4/Receipt - Invoice_extracted_data.json",
+      "page_by_page_output": "data/folder4/Receipt - Invoice_page_by_page_data.json",
+      "document_type": "document"
+    },
+    {
+      "success": true,
+      "file": "data/folder4/report.pdf",
+      "natural_output": "data/folder4/report_extracted_data.json",
+      "page_by_page_output": "data/folder4/report_page_by_page_data.json",
+      "document_type": "document"
+    },
+    {
+      "success": true,
+      "file": "data/folder1/20250906171639963.pdf",
+      "natural_output": "data/folder1/20250906171639963_extracted_data.json",
+      "page_by_page_output": "data/folder1/20250906171639963_page_by_page_data.json",
+      "document_type": "document"
+    },
+    {
+      "success": true,
+      "file": "data/folder2/folder2_1/AF22KB1231.pdf",
+      "natural_output": "data/folder2/folder2_1/AF22KB1231_extracted_data.json",
+      "page_by_page_output": "data/folder2/folder2_1/AF22KB1231_page_by_page_data.json",
+      "document_type": "document"
+    }
+  ]
+}

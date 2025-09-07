@@ -1,0 +1,12 @@
+dspy
+python-dotenv
+PyPDF2
+Pillow
+pytesseract
+opencv-python
+numpy
+pydantic
+typing-extensions
+fitz
+PyMuPDF
+pdfplumber

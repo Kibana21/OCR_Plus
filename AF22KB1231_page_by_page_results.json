@@ -1,0 +1,162 @@
+{
+  "success": true,
+  "document_type": "auto",
+  "file_path": "data/AF22KB1231.pdf",
+  "total_pages": 1,
+  "page_results": [
+    {
+      "page_number": 1,
+      "success": true,
+      "extracted_data": {
+        "booking_id": "AF22KB1231",
+        "booking_date": "22 Nov 24, 22:00 Hrs.",
+        "booking_status": "Confirmed",
+        "airline_pnr": "UVD16C",
+        "flights": [
+          {
+            "flight_number": "6E 323",
+            "airline": "Indigo",
+            "class": "Economy",
+            "departure": {
+              "city": "Bagdogra",
+              "airport": "Bagdogra Airport",
+              "date": "Tue, 7 Jan 2025",
+              "time": "13:35 Hrs."
+            },
+            "arrival": {
+              "city": "Chennai",
+              "airport": "Chennai Airport (Terminal 1)",
+              "date": "Tue, 7 Jan 2025",
+              "time": "16:15 Hrs."
+            },
+            "duration": "2hrs 40min",
+            "refundable": true
+          },
+          {
+            "flight_number": "6E 1025",
+            "airline": "Indigo",
+            "class": "Economy",
+            "departure": {
+              "city": "Chennai",
+              "airport": "Chennai Airport (Terminal 2)",
+              "date": "Wed, 8 Jan 2025",
+              "time": "06:30 Hrs."
+            },
+            "arrival": {
+              "city": "Singapore",
+              "airport": "Changi International Airport (Terminal 2)",
+              "date": "Wed, 8 Jan 2025",
+              "time": "13:20 Hrs."
+            },
+            "duration": "4hrs 20min",
+            "refundable": true
+          }
+        ],
+        "passenger_details": [
+          {
+            "name": "MS. SARASWATI RAI",
+            "type": "Adult",
+            "baggage": {
+              "IXB_MAA": "30KG",
+              "MAA_SIN": "30KG"
+            },
+            "pnr_ticket_no": "AF22KB12311-1"
+          }
+        ],
+        "fare_details": {
+          "basic_fare": "\u20b916970.00",
+          "taxes_fees": "\u20b93050.60",
+          "add_on_services": "\u20b90.00",
+          "total": "\u20b920020.60"
+        },
+        "important_note": [
+          "All guests must present valid identification at check-in.",
+          "Use the airline PNR for all correspondence directly with the airline.",
+          "In case of cancellation less than 6 hours, please cancel with the airline directly.",
+          "Please verify flight timing and terminal information with airline directly.",
+          "All times are local to the respective airports in 24 hours format."
+        ]
+      },
+      "confidence": 1.0,
+      "text_length": 1447
+    }
+  ],
+  "aggregated_data": {
+    "booking_id": "AF22KB1231",
+    "booking_date": "22 Nov 24, 22:00 Hrs.",
+    "booking_status": "Confirmed",
+    "airline_pnr": "UVD16C",
+    "flights": [
+      {
+        "flight_number": "6E 323",
+        "airline": "Indigo",
+        "class": "Economy",
+        "departure": {
+          "city": "Bagdogra",
+          "airport": "Bagdogra Airport",
+          "date": "Tue, 7 Jan 2025",
+          "time": "13:35 Hrs."
+        },
+        "arrival": {
+          "city": "Chennai",
+          "airport": "Chennai Airport (Terminal 1)",
+          "date": "Tue, 7 Jan 2025",
+          "time": "16:15 Hrs."
+        },
+        "duration": "2hrs 40min",
+        "refundable": true
+      },
+      {
+        "flight_number": "6E 1025",
+        "airline": "Indigo",
+        "class": "Economy",
+        "departure": {
+          "city": "Chennai",
+          "airport": "Chennai Airport (Terminal 2)",
+          "date": "Wed, 8 Jan 2025",
+          "time": "06:30 Hrs."
+        },
+        "arrival": {
+          "city": "Singapore",
+          "airport": "Changi International Airport (Terminal 2)",
+          "date": "Wed, 8 Jan 2025",
+          "time": "13:20 Hrs."
+        },
+        "duration": "4hrs 20min",
+        "refundable": true
+      }
+    ],
+    "passenger_details": [
+      {
+        "name": "MS. SARASWATI RAI",
+        "type": "Adult",
+        "baggage": {
+          "IXB_MAA": "30KG",
+          "MAA_SIN": "30KG"
+        },
+        "pnr_ticket_no": "AF22KB12311-1"
+      }
+    ],
+    "fare_details": {
+      "basic_fare": "\u20b916970.00",
+      "taxes_fees": "\u20b93050.60",
+      "add_on_services": "\u20b90.00",
+      "total": "\u20b920020.60"
+    },
+    "important_note": [
+      "All guests must present valid identification at check-in.",
+      "Use the airline PNR for all correspondence directly with the airline.",
+      "In case of cancellation less than 6 hours, please cancel with the airline directly.",
+      "Please verify flight timing and terminal information with airline directly.",
+      "All times are local to the respective airports in 24 hours format."
+    ]
+  },
+  "metadata": {
+    "processing_info": {
+      "document_type": "pdf",
+      "total_pages": 1,
+      "has_images": true,
+      "extraction_method": "page_by_page"
+    }
+  }
+}

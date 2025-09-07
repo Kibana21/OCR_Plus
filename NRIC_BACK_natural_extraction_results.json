@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "document_type": "document",
+  "file_path": "data/NRIC_BACK.JPG",
+  "extracted_data": {
+    "nric_number": "S83848351",
+    "nationality": "INDIAN",
+    "date_of_issue": "04-01-2010",
+    "address": "APT BLK 825 TAMPINES STREET 81 #03-48, SINGAPORE 520825",
+    "date": "23/05/2015"
+  },
+  "metadata": {
+    "processing_info": {
+      "document_type": "image",
+      "total_pages": 1,
+      "text_length": 177,
+      "has_images": true
+    },
+    "extraction_info": {
+      "method": "auto",
+      "schema_used": "document"
+    }
+  }
+}

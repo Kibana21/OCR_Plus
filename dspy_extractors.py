@@ -25,12 +25,12 @@ class DocumentExtractionSignature(dspy.Signature):
     extracted_data: str = dspy.OutputField(desc="Extract all relevant data and return as valid JSON object only, no markdown formatting")
 
 class PageExtractionSignature(dspy.Signature):
-    """Extract structured data from a single page and return as JSON format. Example: {\"patient_name\": \"John Doe\", \"lab_results\": {\"glucose\": \"95 mg/dL\"}}"""
+    """Extract structured data from a single page and return as complete JSON format. Example: {\"patient_name\": \"John Doe\", \"lab_results\": {\"glucose\": \"95 mg/dL\"}}"""
     page_text: str = dspy.InputField()
     page_image: dspy.Image = dspy.InputField()
     page_number: int = dspy.InputField()
     
-    extracted_data: str = dspy.OutputField(desc="Extract all relevant data from this page and return as valid JSON object only, no markdown formatting")
+    extracted_data: str = dspy.OutputField(desc="Extract all relevant data from this page and return as a complete, valid JSON object. Ensure all braces and brackets are properly closed. No markdown formatting, no truncated responses.")
 
 class NaturalDocumentExtractor(dspy.Module):
     """Natural document extraction using DSPy without structured prompting"""

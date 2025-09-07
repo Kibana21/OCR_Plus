@@ -1,0 +1,39 @@
+# Environment Configuration Template
+# Copy this file to .env and fill in your actual values
+
+# ===========================================
+# OPENAI CONFIGURATION (Default)
+# ===========================================
+# Your OpenAI API key for regular OpenAI services
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ===========================================
+# AZURE OPENAI CONFIGURATION (Alternative)
+# ===========================================
+# Uncomment and fill these if you want to use Azure OpenAI instead
+
+# AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+# AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
+# AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name_here
+# AZURE_OPENAI_API_VERSION=2024-02-15-preview
+
+# ===========================================
+# USAGE INSTRUCTIONS
+# ===========================================
+# 
+# For Regular OpenAI:
+# 1. Set only OPENAI_API_KEY
+# 2. Run: python main.py (will use OpenAI)
+# 
+# For Azure OpenAI:
+# 1. Set all four AZURE_OPENAI_* variables
+# 2. Run: python main.py --azure (will use Azure OpenAI)
+# 
+# ===========================================
+# EXAMPLE VALUES (DO NOT USE THESE)
+# ===========================================
+# OPENAI_API_KEY=sk-1234567890abcdef...
+# AZURE_OPENAI_API_KEY=1234567890abcdef...
+# AZURE_OPENAI_ENDPOINT=https://mycompany.openai.azure.com/
+# AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini
+# AZURE_OPENAI_API_VERSION=2024-02-15-preview

@@ -7,20 +7,21 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 from data_extractor import DataExtractor
+from llm_config import LLMConfig
 
-def quick_batch_process(data_folder: str = "data"):
+def quick_batch_process(data_folder: str = "data", use_azure: bool = False):
     """Quickly process all documents in data folder"""
     
-    # Load environment
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    
-    if not api_key:
-        print("❌ Error: OPENAI_API_KEY not set")
+    # Initialize LLM configuration
+    try:
+        llm_config = LLMConfig(use_azure=use_azure)
+        api_key = llm_config.get_api_key()
+    except ValueError as e:
+        print(f"❌ Error: {e}")
         return
     
     # Initialize extractor
-    extractor = DataExtractor(api_key=api_key, extraction_method="auto")
+    extractor = DataExtractor(api_key=api_key, extraction_method="auto", use_azure=use_azure)
     
     # Find all documents
     data_path = Path(data_folder)
@@ -60,5 +61,16 @@ def quick_batch_process(data_folder: str = "data"):
 
 if __name__ == "__main__":
     import sys
-    data_folder = sys.argv[1] if len(sys.argv) > 1 else "data"
-    quick_batch_process(data_folder)
+    
+    # Check for Azure flag first
+    use_azure = "--azure" in sys.argv or "--use-azure" in sys.argv
+    
+    # Filter out flags to get the data folder
+    non_flag_args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    
+    if non_flag_args:
+        data_folder = non_flag_args[0]
+    else:
+        data_folder = "data"
+    
+    quick_batch_process(data_folder, use_azure=use_azure)

@@ -9,18 +9,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from data_extractor import DataExtractor
+from llm_config import LLMConfig
 
-def main(file_path: str = None):
+def main(file_path: str = None, use_azure: bool = False):
     """Main function demonstrating natural DSPy extraction"""
     
-    # Load environment variables
-    load_dotenv()
-    
-    # Check if API key is available
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("❌ Error: OPENAI_API_KEY environment variable not set")
-        print("Please set your OpenAI API key in a .env file")
+    # Initialize LLM configuration
+    try:
+        llm_config = LLMConfig(use_azure=use_azure)
+        api_key = llm_config.get_api_key()
+        llm_config.print_config()
+    except ValueError as e:
+        print(f"❌ Error: {e}")
         return
     
     # Get file path from argument or use default
@@ -37,7 +37,8 @@ def main(file_path: str = None):
         api_key=api_key,
         model_name="openai/gpt-4o-mini",
         use_vision=True,
-        extraction_method="auto"
+        extraction_method="auto",
+        use_azure=use_azure
     )
     
     print(f"📄 Extracting data from: {file_path}")
@@ -87,17 +88,18 @@ def main(file_path: str = None):
         extractor.cleanup()
         print("\n🧹 Cleanup completed.")
 
-def test_page_by_page(file_path: str = None):
+def test_page_by_page(file_path: str = None, use_azure: bool = False):
     """Test page-by-page extraction"""
     
     print("\n🔍 Testing Page-by-Page Extraction")
     print("=" * 50)
     
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    
-    if not api_key:
-        print("❌ Error: OPENAI_API_KEY not set")
+    # Initialize LLM configuration
+    try:
+        llm_config = LLMConfig(use_azure=use_azure)
+        api_key = llm_config.get_api_key()
+    except ValueError as e:
+        print(f"❌ Error: {e}")
         return
     
     # Get file path from argument or use default
@@ -108,7 +110,7 @@ def test_page_by_page(file_path: str = None):
         print(f"❌ Error: Document not found at {file_path}")
         return
     
-    extractor = DataExtractor(api_key=api_key, extraction_method="auto")
+    extractor = DataExtractor(api_key=api_key, extraction_method="auto", use_azure=use_azure)
     
     try:
         # Test page-by-page extraction
@@ -168,16 +170,23 @@ if __name__ == "__main__":
     else:
         file_path = None  # Use default
     
+    # Check for Azure flag
+    use_azure = "--azure" in sys.argv or "--use-azure" in sys.argv
+    
     print("🎯 Natural DSPy Data Extractor")
     print("=" * 60)
     print("✨ No structured prompting - Pure DSPy natural extraction")
+    if use_azure:
+        print("🔵 Using Azure OpenAI")
+    else:
+        print("🔵 Using OpenAI")
     print("=" * 60)
     
     # Run main extraction
-    main(file_path)
+    main(file_path, use_azure=use_azure)
     
     # Test page-by-page extraction
-    test_page_by_page(file_path)
+    test_page_by_page(file_path, use_azure=use_azure)
     
     print("\n🎉 All tests completed!")
     print("📁 Check the generated JSON files for results")

@@ -9,30 +9,30 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 from data_extractor import DataExtractor
+from llm_config import LLMConfig
 
 class BatchProcessor:
     """Process all documents in data folder recursively"""
     
-    def __init__(self, data_folder: str = "data"):
+    def __init__(self, data_folder: str = "data", use_azure: bool = False):
         self.data_folder = Path(data_folder)
         self.supported_formats = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.html', '.htm']
         self.processed_count = 0
         self.failed_count = 0
         self.results = []
+        self.use_azure = use_azure
         
-        # Load environment variables
-        load_dotenv()
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        
-        if not self.api_key:
-            raise ValueError("❌ Error: OPENAI_API_KEY environment variable not set")
+        # Initialize LLM configuration
+        self.llm_config = LLMConfig(use_azure=use_azure)
+        self.api_key = self.llm_config.get_api_key()
         
         # Initialize extractor
         self.extractor = DataExtractor(
             api_key=self.api_key,
             model_name="openai/gpt-4o-mini",
             use_vision=True,
-            extraction_method="auto"
+            extraction_method="auto",
+            use_azure=use_azure
         )
     
     def find_documents(self) -> list:
@@ -221,13 +221,19 @@ class BatchProcessor:
 
 def main():
     """Main function for batch processing"""
-    if len(sys.argv) > 1:
-        data_folder = sys.argv[1]
+    # Check for Azure flag first
+    use_azure = "--azure" in sys.argv or "--use-azure" in sys.argv
+    
+    # Filter out flags to get the data folder
+    non_flag_args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    
+    if non_flag_args:
+        data_folder = non_flag_args[0]
     else:
         data_folder = "data"
     
     try:
-        processor = BatchProcessor(data_folder)
+        processor = BatchProcessor(data_folder, use_azure=use_azure)
         summary = processor.process_all()
         
         if summary["success"]:

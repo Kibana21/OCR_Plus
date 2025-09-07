@@ -11,6 +11,7 @@ from pathlib import Path
 from document_processor import DocumentProcessor
 from dspy_extractors import NaturalDocumentExtractor, ChainOfThoughtExtractor
 from page_by_page_extractor import PageByPageExtractor
+from llm_config import LLMConfig
 
 class DataExtractor:
     """Main class for extracting structured data from documents using DSPy"""
@@ -19,33 +20,28 @@ class DataExtractor:
                  api_key: str = None,
                  model_name: str = "openai/gpt-4o-mini",
                  use_vision: bool = True,
-                 extraction_method: str = "auto"):
+                 extraction_method: str = "auto",
+                 use_azure: bool = False):
         """
         Initialize the Data Extractor
         
         Args:
-            api_key: OpenAI API key (if not provided, will use environment variable)
+            api_key: API key (if not provided, will use environment variable)
             model_name: DSPy model to use
             use_vision: Whether to use vision-capable models
             extraction_method: Method to use ("auto", "simple", "chain_of_thought", "multi_step", "vision_enhanced")
+            use_azure: Whether to use Azure OpenAI (if True, will look for Azure environment variables)
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
-        
-        # Configure DSPy
-        if use_vision and "gpt-4o" in model_name:
-            # Use GPT-4o for vision capabilities
-            self.lm = dspy.LM(model_name, api_key=self.api_key)
-        else:
-            self.lm = dspy.LM(model_name, api_key=self.api_key)
-        
-        dspy.configure(lm=self.lm)
+        # Initialize LLM configuration
+        self.llm_config = LLMConfig(use_azure=use_azure)
+        self.lm = self.llm_config.get_lm()
+        self.api_key = self.llm_config.get_api_key()
+        self.use_azure = use_azure
         
         # Initialize components
         self.document_processor = DocumentProcessor()
         self.extraction_method = extraction_method
-        self.page_by_page_extractor = PageByPageExtractor(api_key=self.api_key, model_name=model_name)
+        self.page_by_page_extractor = PageByPageExtractor(api_key=self.api_key, model_name=model_name, use_azure=use_azure)
         
         # Initialize extractors
         self._initialize_extractors()

@@ -9,21 +9,18 @@ from pathlib import Path
 
 from document_processor import DocumentProcessor
 from dspy_extractors import NaturalDocumentExtractor, ChainOfThoughtExtractor, PageExtractor
+from llm_config import LLMConfig
 
 class PageByPageExtractor:
     """Extract data from each page individually and then aggregate"""
     
-    def __init__(self, api_key: str = None, model_name: str = "openai/gpt-4o-mini"):
+    def __init__(self, api_key: str = None, model_name: str = "openai/gpt-4o-mini", use_azure: bool = False):
         """Initialize the page-by-page extractor"""
-        import os
-        
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required")
-        
-        # Configure DSPy with vision-capable model
-        self.lm = dspy.LM(model_name, api_key=self.api_key)
-        dspy.configure(lm=self.lm)
+        # Initialize LLM configuration
+        self.llm_config = LLMConfig(use_azure=use_azure)
+        self.lm = self.llm_config.get_lm()
+        self.api_key = self.llm_config.get_api_key()
+        self.use_azure = use_azure
         
         # Initialize components
         self.document_processor = DocumentProcessor()
@@ -127,15 +124,27 @@ class PageByPageExtractor:
                 page_number=page_num
             )
             
-            # Parse the result
+            # Parse the result with improved error handling
             try:
                 extracted_data = json.loads(result.extracted_data)
                 confidence = 1.0  # DSPy handles confidence naturally
             except json.JSONDecodeError as e:
                 print(f"⚠️  JSON parsing failed for page {page_num}: {e}")
                 print(f"Raw output: {result.extracted_data[:200]}...")
-                extracted_data = {"raw_extraction": result.extracted_data}
-                confidence = 0.8
+                
+                # Try to fix common JSON issues
+                fixed_json = self._fix_incomplete_json(result.extracted_data)
+                if fixed_json:
+                    try:
+                        extracted_data = json.loads(fixed_json)
+                        confidence = 0.9  # Slightly lower confidence for fixed JSON
+                        print(f"✅ Fixed JSON for page {page_num}")
+                    except json.JSONDecodeError:
+                        extracted_data = {"raw_extraction": result.extracted_data}
+                        confidence = 0.8
+                else:
+                    extracted_data = {"raw_extraction": result.extracted_data}
+                    confidence = 0.8
             
             return {
                 'success': True,
@@ -151,6 +160,41 @@ class PageByPageExtractor:
                 'confidence': 0
             }
     
+    def _fix_incomplete_json(self, json_str: str) -> str:
+        """Try to fix common JSON issues like incomplete JSON"""
+        try:
+            # Remove any trailing commas before closing braces/brackets
+            import re
+            
+            # Fix trailing commas before closing braces
+            json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+            
+            # If JSON is incomplete (missing closing braces), try to complete it
+            open_braces = json_str.count('{')
+            close_braces = json_str.count('}')
+            open_brackets = json_str.count('[')
+            close_brackets = json_str.count(']')
+            
+            # Add missing closing braces
+            missing_braces = open_braces - close_braces
+            missing_brackets = open_brackets - close_brackets
+            
+            if missing_braces > 0 or missing_brackets > 0:
+                # Add missing closing brackets first
+                for _ in range(missing_brackets):
+                    json_str += ']'
+                
+                # Add missing closing braces
+                for _ in range(missing_braces):
+                    json_str += '}'
+                
+                print(f"🔧 Attempted to fix incomplete JSON by adding {missing_braces} braces and {missing_brackets} brackets")
+            
+            return json_str
+            
+        except Exception as e:
+            print(f"⚠️  Error fixing JSON: {e}")
+            return None
     
     def _aggregate_page_results(self, page_results: List[Dict[str, Any]], 
                                document_type: str) -> Dict[str, Any]:

@@ -10,3 +10,4 @@ typing-extensions
 fitz
 PyMuPDF
 pdfplumber
+beautifulsoup4

@@ -24,7 +24,7 @@ def quick_batch_process(data_folder: str = "data"):
     
     # Find all documents
     data_path = Path(data_folder)
-    supported_formats = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+    supported_formats = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.html', '.htm']
     
     documents = []
     for file_path in data_path.rglob("*"):

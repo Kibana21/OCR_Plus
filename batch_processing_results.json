@@ -1,8 +1,8 @@
 {
   "batch_info": {
     "data_folder": "data",
-    "total_documents": 5,
-    "processed_successfully": 5,
+    "total_documents": 6,
+    "processed_successfully": 6,
     "failed": 0,
     "success_rate": "100.0%"
   },
@@ -11,6 +11,13 @@
       "success": true,
       "file": "data/folder3/NRIC_BACK.JPG",
       "natural_output": "data/folder3/NRIC_BACK_extracted_data.json",
+      "document_type": "document"
+    },
+    {
+      "success": true,
+      "file": "data/folder4/test_html_sample.html",
+      "natural_output": "data/folder4/test_html_sample_extracted_data.json",
+      "page_by_page_output": "data/folder4/test_html_sample_page_by_page_data.json",
       "document_type": "document"
     },
     {

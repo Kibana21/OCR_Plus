@@ -15,7 +15,7 @@ class BatchProcessor:
     
     def __init__(self, data_folder: str = "data"):
         self.data_folder = Path(data_folder)
-        self.supported_formats = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+        self.supported_formats = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.html', '.htm']
         self.processed_count = 0
         self.failed_count = 0
         self.results = []
@@ -76,8 +76,8 @@ class BatchProcessor:
                 
                 print(f"✅ Natural extraction: {output_file.name}")
                 
-                # Also do page-by-page extraction for PDFs
-                if file_path.suffix.lower() == '.pdf':
+                # Also do page-by-page extraction for PDFs and HTML files
+                if file_path.suffix.lower() in ['.pdf', '.html', '.htm']:
                     page_result = self.extractor.extract_page_by_page(str(file_path), "auto")
                     
                     if page_result["success"]:

@@ -84,7 +84,7 @@ for page_result in result["page_results"]:
 files = ["doc1.pdf", "doc2.jpg", "doc3.pdf"]
 results = extractor.batch_extract(files)
 ```
-
+kartik
 ## 🎨 Key Features
 
 - ✅ **Natural DSPy Extraction**: No structured prompting

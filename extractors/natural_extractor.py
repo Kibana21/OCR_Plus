@@ -108,7 +108,7 @@ class NaturalExtractor(BaseDataExtractor):
         """Extract data from each page individually"""
         try:
             # Import here to avoid circular imports
-            from page_by_page_extractor import PageByPageExtractor
+            from .page_by_page_extractor import PageByPageExtractor
             
             # Create page-by-page extractor
             page_extractor = PageByPageExtractor(

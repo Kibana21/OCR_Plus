@@ -17,12 +17,12 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python batch_processor_new.py --azure                    # Process all documents in data/ with Azure
+  python batch_processor_new.py --azure                    # Process all documents with page-by-page (default)
   python batch_processor_new.py data/                     # Process all documents in data/
   python batch_processor_new.py --method chain_of_thought # Use specific extraction method
   python batch_processor_new.py --config config.env       # Use custom config file
   python batch_processor_new.py --no-save                 # Process without saving results
-  python batch_processor_new.py --page-by-page            # Also generate page-by-page files
+  python batch_processor_new.py --no-page-by-page         # Skip page-by-page extraction
         """
     )
     
@@ -72,9 +72,9 @@ Examples:
     )
     
     parser.add_argument(
-        '--page-by-page',
+        '--no-page-by-page',
         action='store_true',
-        help='Also generate page-by-page extraction files (for PDFs and HTML)'
+        help='Skip page-by-page extraction (page-by-page is enabled by default for PDFs and HTML)'
     )
     
     parser.add_argument(
@@ -108,6 +108,7 @@ def main():
     print(f"📁 Data Folder: {args.data_folder}")
     print(f"🔧 Extraction Method: {args.method}")
     print(f"📄 Document Type: {args.type}")
+    print(f"📄 Page-by-Page: {'Enabled (default)' if not args.no_page_by_page else 'Disabled'}")
     print("=" * 60)
     
     try:
@@ -143,7 +144,7 @@ def main():
             document_types=args.type,
             extraction_method=args.method,
             save_results=not args.no_save,
-            include_page_by_page=args.page_by_page
+            include_page_by_page=not args.no_page_by_page  # Default to True, unless --no-page-by-page is used
         )
         
         if not results:

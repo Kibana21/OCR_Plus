@@ -1,0 +1,26 @@
+{
+  "batch_info": {
+    "data_folder": "data",
+    "total_documents": 2,
+    "successful": 2,
+    "failed": 0,
+    "success_rate": "100.0%",
+    "total_time": 52.12726378440857,
+    "extraction_method": "auto",
+    "document_type": "auto"
+  },
+  "results": [
+    {
+      "file_path": "data/folder1/20250906171639963.pdf",
+      "success": true,
+      "processing_time": 13.156111001968384,
+      "error_message": null
+    },
+    {
+      "file_path": "data/folder1/Kartik - Estimate.pdf",
+      "success": true,
+      "processing_time": 38.971152782440186,
+      "error_message": null
+    }
+  ]
+}

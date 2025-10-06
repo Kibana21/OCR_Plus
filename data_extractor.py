@@ -1,110 +1,218 @@
 """
-Main Data Extractor class that orchestrates the entire extraction process
+Enhanced Data Extractor class that orchestrates the entire extraction process
+With improved architecture, dependency injection, and error handling
 """
 
 import dspy
 import json
-import os
+import time
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
+from abc import ABC, abstractmethod
 
-from document_processor import DocumentProcessor
-from dspy_extractors import NaturalDocumentExtractor, ChainOfThoughtExtractor
+from document_processor import DocumentProcessor, ProcessingResult
+from dspy_extractors import ExtractorFactory, BaseDocumentExtractor
 from page_by_page_extractor import PageByPageExtractor
-from llm_config import LLMConfig
+from config_manager import get_config, ConfigManager
+from result_manager import ResultManager, ExtractionResult, ResultStatus, ProcessingMetadata
 
-class DataExtractor:
+
+class BaseDataExtractor:
+    """Base class for data extractors"""
+    
+    def __init__(self, config_manager: Optional[ConfigManager] = None):
+        """
+        Initialize data extractor
+        
+        Args:
+            config_manager: Configuration manager instance
+        """
+        self.config = config_manager or get_config()
+        self.result_manager = ResultManager()
+    
+    def extract(self, file_path: str, document_type: str = "auto") -> ExtractionResult:
+        """Extract data from document - must be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement extract")
+    
+    def get_supported_methods(self) -> List[str]:
+        """Get list of supported extraction methods - must be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement get_supported_methods")
+
+
+class DataExtractor(BaseDataExtractor):
     """Main class for extracting structured data from documents using DSPy"""
     
     def __init__(self, 
-                 api_key: str = None,
-                 model_name: str = "openai/gpt-4o-mini",
-                 use_vision: bool = True,
-                 extraction_method: str = "auto",
-                 use_azure: bool = False):
+                 config_manager: Optional[ConfigManager] = None,
+                 extraction_method: str = "auto"):
         """
         Initialize the Data Extractor
         
         Args:
-            api_key: API key (if not provided, will use environment variable)
-            model_name: DSPy model to use
-            use_vision: Whether to use vision-capable models
-            extraction_method: Method to use ("auto", "simple", "chain_of_thought", "multi_step", "vision_enhanced")
-            use_azure: Whether to use Azure OpenAI (if True, will look for Azure environment variables)
+            config_manager: Configuration manager instance
+            extraction_method: Method to use ("auto", "natural", "chain_of_thought", "vision_enhanced")
         """
+        super().__init__(config_manager)
+        
         # Initialize LLM configuration
-        self.llm_config = LLMConfig(use_azure=use_azure)
-        self.lm = self.llm_config.get_lm()
-        self.api_key = self.llm_config.get_api_key()
-        self.use_azure = use_azure
+        self._setup_llm()
         
         # Initialize components
         self.document_processor = DocumentProcessor()
-        self.extraction_method = extraction_method
-        self.page_by_page_extractor = PageByPageExtractor(api_key=self.api_key, model_name=model_name, use_azure=use_azure)
+        self.extraction_method = extraction_method or self.config.extraction.extraction_method
         
         # Initialize extractors
         self._initialize_extractors()
     
+    def get_supported_methods(self) -> List[str]:
+        """Get list of supported extraction methods"""
+        return ExtractorFactory.get_available_extractors()
+    
+    def _setup_llm(self):
+        """Setup LLM configuration"""
+        from llm_config import LLMConfig
+        
+        self.llm_config = LLMConfig(use_azure=self.config.llm.use_azure)
+        self.lm = self.llm_config.get_lm()
+        self.api_key = self.llm_config.get_api_key()
+        self.use_azure = self.config.llm.use_azure
+    
     def _initialize_extractors(self):
         """Initialize different extraction modules"""
-        self.extractors = {
-            "natural": NaturalDocumentExtractor(),
-            "chain_of_thought": ChainOfThoughtExtractor()
-        }
+        self.extractors = {}
+        
+        # Initialize extractors using factory
+        for method in self.get_supported_methods():
+            try:
+                self.extractors[method] = ExtractorFactory.create_extractor(method)
+            except Exception as e:
+                print(f"⚠️  Warning: Could not initialize {method} extractor: {e}")
+    
+    def extract(self, file_path: str, document_type: str = "auto") -> ExtractionResult:
+        """
+        Extract structured data from a document file
+        
+        Args:
+            file_path: Path to the document file
+            document_type: Type of document (for context)
+            
+        Returns:
+            ExtractionResult object
+        """
+        start_time = time.time()
+        
+        try:
+            # Process document
+            print(f"Processing document: {file_path}")
+            processing_result = self.document_processor.process(file_path)
+            
+            if not processing_result.success:
+                return self.result_manager.create_extraction_result(
+                    file_path=file_path,
+                    status=ResultStatus.FAILED,
+                    metadata=ProcessingMetadata(
+                        processing_time_seconds=time.time() - start_time,
+                        file_size_bytes=0,
+                        error_message=processing_result.error_message
+                    ),
+                    error_details={"processing_error": processing_result.error_message}
+                )
+            
+            # Auto-detect document type if needed
+            if document_type == "auto":
+                document_type = self._detect_document_type(processing_result)
+                print(f"Detected document type: {document_type}")
+            
+            # Get extraction method
+            method = self._select_best_method(processing_result, document_type)
+            
+            # Extract data
+            print(f"Extracting data using method: {method}")
+            extracted_data = self._extract_data(
+                processing_result, document_type, method
+            )
+            
+            processing_time = time.time() - start_time
+            
+            return self.result_manager.create_extraction_result(
+                file_path=file_path,
+                status=ResultStatus.SUCCESS,
+                extracted_data=extracted_data,
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=processing_result.metadata.file_size_bytes,
+                    page_count=processing_result.metadata.page_count,
+                    document_type=document_type,
+                    extraction_method=method,
+                    confidence_score=0.9  # Default confidence
+                )
+            )
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return self.result_manager.create_extraction_result(
+                file_path=file_path,
+                status=ResultStatus.FAILED,
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=0,
+                    error_message=str(e)
+                ),
+                error_details={"extraction_error": str(e)}
+            )
     
     def extract_from_file(self, 
                          file_path: str, 
                          document_type: str = "auto",
                          extraction_method: str = None) -> Dict[str, Any]:
         """
-        Extract structured data from a document file using natural DSPy extraction
+        Extract structured data from a document file (backward compatibility)
         
         Args:
             file_path: Path to the document file
-            document_type: Type of document (for context, not structured prompting)
+            document_type: Type of document (for context)
             extraction_method: Override default extraction method
             
         Returns:
             Dictionary containing extracted data and metadata
         """
-        try:
-            # Process document
-            print(f"Processing document: {file_path}")
-            processed_doc = self.document_processor.process_document(file_path)
-            
-            # Auto-detect document type if needed
-            if document_type == "auto":
-                document_type = self._detect_document_type(processed_doc)
-                print(f"Detected document type: {document_type}")
-            
-            # Get extraction method
-            method = extraction_method or self.extraction_method
-            if method == "auto":
-                method = self._select_best_method(processed_doc, document_type)
-            
-            # Extract data
-            print(f"Extracting data using method: {method}")
-            extracted_data = self._extract_data(
-                processed_doc, document_type, method
-            )
-            
-            # Format and validate output
-            result = self._format_output(extracted_data, processed_doc, document_type)
-            
-            return result
-            
-        except Exception as e:
+        # Use the new extraction method
+        result = self.extract(file_path, document_type)
+        
+        # Convert ExtractionResult to legacy format for backward compatibility
+        if result.status == ResultStatus.SUCCESS:
+            return {
+                "success": True,
+                "document_type": result.metadata.document_type,
+                "file_path": result.file_path,
+                "extracted_data": result.extracted_data,
+                "metadata": {
+                    "processing_info": {
+                        "document_type": result.metadata.document_type,
+                        "total_pages": result.metadata.page_count,
+                        "text_length": len(str(result.extracted_data)),
+                        "has_images": result.metadata.page_count > 0,
+                        "file_size_bytes": result.metadata.file_size_bytes
+                    },
+                    "extraction_info": {
+                        "method": result.metadata.extraction_method,
+                        "confidence_score": result.metadata.confidence_score,
+                        "processing_time_seconds": result.metadata.processing_time_seconds,
+                        "timestamp": result.metadata.timestamp
+                    }
+                }
+            }
+        else:
             return {
                 "success": False,
-                "error": str(e),
-                "file_path": file_path,
-                "document_type": document_type
+                "error": result.error_details.get("extraction_error", "Unknown error") if result.error_details else "Unknown error",
+                "file_path": result.file_path,
+                "document_type": result.metadata.document_type
             }
     
-    def _detect_document_type(self, processed_doc: Dict[str, Any]) -> str:
+    def _detect_document_type(self, processing_result: ProcessingResult) -> str:
         """Auto-detect document type based on content - generic approach"""
-        text_content = processed_doc.get('text_content', '').lower()
+        text_content = processing_result.text_content.lower()
         
         # Generic detection - let DSPy figure out the type naturally
         if len(text_content) > 100:
@@ -112,30 +220,45 @@ class DataExtractor:
         else:
             return "simple_document"
     
-    def _select_best_method(self, processed_doc: Dict[str, Any], document_type: str) -> str:
+    def _select_best_method(self, processing_result: ProcessingResult, document_type: str) -> str:
         """Select the best extraction method based on document characteristics"""
-        has_images = len(processed_doc.get('images', [])) > 0
-        text_length = len(processed_doc.get('text_content', ''))
+        has_images = len(processing_result.images) > 0
+        text_length = len(processing_result.text_content)
         
         if text_length > 1000:
             return "chain_of_thought"
+        elif has_images and processing_result.document_type in ["pdf", "html"]:
+            return "vision_enhanced"
         else:
             return "natural"
     
-    def _extract_data(self, processed_doc: Dict[str, Any], document_type: str, 
-                     method: str) -> str:
-        """Extract data using natural DSPy extraction"""
+    def _extract_data(self, processing_result: ProcessingResult, document_type: str, 
+                     method: str) -> Dict[str, Any]:
+        """Extract data using DSPy extraction"""
         
         # Prepare input data
-        text_content = processed_doc.get('text_content', '')
-        images_data = self._prepare_images_for_dspy(processed_doc.get('images', []))
+        text_content = processing_result.text_content
+        images_data = self._prepare_images_for_dspy(processing_result.images)
         
         # Select extractor
-        extractor = self.extractors.get(method, self.extractors["natural"])
+        extractor = self.extractors.get(method, self.extractors.get("natural"))
         
-        # Extract data using natural DSPy extraction
+        if not extractor:
+            raise ValueError(f"Extractor not found for method: {method}")
+        
+        # Extract data using DSPy extraction
         result = extractor(document_text=text_content, document_image=images_data)
-        return result.extracted_data
+        
+        # Parse JSON data
+        try:
+            extracted_data = json.loads(result.extracted_data)
+        except json.JSONDecodeError as e:
+            print(f"⚠️  JSON parsing failed: {e}")
+            print(f"Raw output: {result.extracted_data[:200]}...")
+            # If JSON parsing fails, return raw data
+            extracted_data = {"raw_extraction": result.extracted_data}
+        
+        return extracted_data
     
     def _prepare_images_for_dspy(self, images: List[Dict[str, Any]]) -> dspy.Image:
         """Prepare image data for DSPy processing using native dspy.Image"""

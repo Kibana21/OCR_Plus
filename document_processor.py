@@ -1,14 +1,17 @@
 """
-Document Processor for PDF, Image, and HTML files
-Handles conversion to text and image extraction for DSPy processing
+Enhanced Document Processor for PDF, Image, and HTML files
+Handles conversion to text and image extraction for DSPy processing with improved error handling and validation
 """
 
 import os
 import io
 import re
 import base64
+import time
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 # PDF processing
 import PyPDF2
@@ -23,16 +26,163 @@ import numpy as np
 # HTML processing
 from bs4 import BeautifulSoup
 
-class DocumentProcessor:
+from config_manager import get_config
+from result_manager import ProcessingMetadata
+
+
+@dataclass
+class ProcessingResult:
+    """Result of document processing operation"""
+    success: bool
+    document_type: str
+    file_path: str
+    text_content: str
+    images: List[Dict[str, Any]]
+    metadata: ProcessingMetadata
+    error_message: Optional[str] = None
+
+
+class BaseDocumentProcessor:
+    """Base class for document processors"""
+    
+    def __init__(self, temp_dir: Optional[str] = None):
+        """
+        Initialize document processor
+        
+        Args:
+            temp_dir: Directory for temporary files
+        """
+        self.config = get_config()
+        self.temp_dir = Path(temp_dir) if temp_dir else Path(self.config.processing.temp_dir)
+        self.temp_dir.mkdir(exist_ok=True)
+    
+    def process(self, file_path: Union[str, Path]) -> ProcessingResult:
+        """Process a document file - must be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement process")
+    
+    def get_supported_formats(self) -> List[str]:
+        """Get list of supported file formats - must be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement get_supported_formats")
+    
+    def validate_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+        """
+        Validate file before processing
+        
+        Args:
+            file_path: Path to the file
+            
+        Returns:
+            Validation result dictionary
+        """
+        file_path = Path(file_path)
+        validation = {"valid": True, "errors": [], "warnings": []}
+        
+        # Check if file exists
+        if not file_path.exists():
+            validation["valid"] = False
+            validation["errors"].append(f"File not found: {file_path}")
+            return validation
+        
+        # Check file size
+        file_size_mb = file_path.stat().st_size / (1024 * 1024)
+        if file_size_mb > self.config.processing.max_file_size_mb:
+            validation["valid"] = False
+            validation["errors"].append(f"File too large: {file_size_mb:.1f}MB > {self.config.processing.max_file_size_mb}MB")
+        
+        # Check file format
+        if file_path.suffix.lower() not in self.get_supported_formats():
+            validation["valid"] = False
+            validation["errors"].append(f"Unsupported file format: {file_path.suffix}")
+        
+        # Warnings
+        if file_size_mb > self.config.processing.max_file_size_mb * 0.8:
+            validation["warnings"].append("File is close to size limit")
+        
+        return validation
+    
+    def cleanup_temp_files(self):
+        """Clean up temporary files"""
+        if self.temp_dir.exists():
+            try:
+                for file in self.temp_dir.iterdir():
+                    if file.is_file():
+                        file.unlink()
+                print(f"🧹 Cleaned up temporary files in {self.temp_dir}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not clean up temporary files: {e}")
+
+
+class DocumentProcessor(BaseDocumentProcessor):
     """Processes PDF, image, and HTML documents for data extraction"""
     
-    def __init__(self, temp_dir: str = "temp_images"):
-        self.temp_dir = Path(temp_dir)
-        self.temp_dir.mkdir(exist_ok=True)
+    def __init__(self, temp_dir: Optional[str] = None):
+        """Initialize document processor"""
+        super().__init__(temp_dir)
+    
+    def get_supported_formats(self) -> List[str]:
+        """Get list of supported file formats"""
+        return self.config.processing.supported_formats
+    
+    def process(self, file_path: Union[str, Path]) -> ProcessingResult:
+        """
+        Process a document file with enhanced error handling
         
+        Args:
+            file_path: Path to the document file
+            
+        Returns:
+            ProcessingResult object
+        """
+        file_path = Path(file_path)
+        start_time = time.time()
+        
+        # Validate file first
+        validation = self.validate_file(file_path)
+        if not validation["valid"]:
+            return ProcessingResult(
+                success=False,
+                document_type="unknown",
+                file_path=str(file_path),
+                text_content="",
+                images=[],
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=time.time() - start_time,
+                    file_size_bytes=0,
+                    error_message="; ".join(validation["errors"])
+                ),
+                error_message="; ".join(validation["errors"])
+            )
+        
+        # Process based on file type
+        try:
+            if file_path.suffix.lower() == '.pdf':
+                return self._process_pdf_enhanced(file_path, start_time)
+            elif file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+                return self._process_image_enhanced(file_path, start_time)
+            elif file_path.suffix.lower() in ['.html', '.htm']:
+                return self._process_html_enhanced(file_path, start_time)
+            else:
+                raise ValueError(f"Unsupported file format: {file_path.suffix}")
+                
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return ProcessingResult(
+                success=False,
+                document_type="unknown",
+                file_path=str(file_path),
+                text_content="",
+                images=[],
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_path.stat().st_size,
+                    error_message=str(e)
+                ),
+                error_message=str(e)
+            )
+    
     def process_document(self, file_path: str) -> Dict[str, Any]:
         """
-        Main processing function for documents
+        Main processing function for documents (backward compatibility)
         
         Args:
             file_path: Path to the document (PDF, image, or HTML)
@@ -40,19 +190,231 @@ class DocumentProcessor:
         Returns:
             Dictionary containing text content, images, and metadata
         """
-        file_path = Path(file_path)
+        result = self.process(file_path)
         
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+        # Convert ProcessingResult to legacy format for backward compatibility
+        return {
+            'type': result.document_type,
+            'file_path': result.file_path,
+            'text_content': result.text_content,
+            'images': result.images,
+            'metadata': {
+                'processing_info': {
+                    'document_type': result.document_type,
+                    'total_pages': result.metadata.page_count,
+                    'text_length': len(result.text_content),
+                    'has_images': len(result.images) > 0,
+                    'file_size_bytes': result.metadata.file_size_bytes,
+                    'processing_time_seconds': result.metadata.processing_time_seconds
+                },
+                'success': result.success,
+                'error_message': result.error_message
+            }
+        }
+    
+    def _process_pdf_enhanced(self, pdf_path: Path, start_time: float) -> ProcessingResult:
+        """Enhanced PDF processing with better error handling"""
+        file_size = pdf_path.stat().st_size
+        
+        try:
+            # Extract text from PDF
+            text_content = ""
+            page_count = 0
             
-        if file_path.suffix.lower() == '.pdf':
-            return self._process_pdf(file_path)
-        elif file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-            return self._process_image(file_path)
-        elif file_path.suffix.lower() in ['.html', '.htm']:
-            return self._process_html(file_path)
-        else:
-            raise ValueError(f"Unsupported file format: {file_path.suffix}")
+            try:
+                with open(pdf_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text_content_list = []
+                    
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        page_text = page.extract_text()
+                        text_content_list.append(f"--- Page {page_num + 1} ---\n{page_text}")
+                    
+                    text_content = '\n\n'.join(text_content_list)
+                    page_count = len(pdf_reader.pages)
+                    
+            except Exception as e:
+                print(f"⚠️  Text extraction failed: {e}")
+                text_content = ""
+            
+            # Convert PDF pages to images
+            images = []
+            try:
+                pdf_document = fitz.open(pdf_path)
+                image_data = []
+                
+                for page_num in range(pdf_document.page_count):
+                    page = pdf_document[page_num]
+                    
+                    # Convert page to image with high DPI
+                    mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better quality
+                    pix = page.get_pixmap(matrix=mat)
+                    
+                    # Convert to PIL Image
+                    img_data = pix.tobytes("png")
+                    image = Image.open(io.BytesIO(img_data))
+                    
+                    # Enhance image quality if enabled
+                    if self.config.processing.enable_image_enhancement:
+                        image = self._enhance_image(image)
+                    
+                    # Save individual page images
+                    page_filename = self.temp_dir / f"page_{page_num+1}.png"
+                    image.save(page_filename, format='PNG')
+                    
+                    image_data.append({
+                        'page_number': page_num + 1,
+                        'image_object': image,
+                        'width': image.width,
+                        'height': image.height,
+                        'file_path': str(page_filename)
+                    })
+                
+                pdf_document.close()
+                images = image_data
+                
+            except Exception as e:
+                print(f"⚠️  Image conversion failed: {e}")
+                images = []
+            
+            processing_time = time.time() - start_time
+            
+            return ProcessingResult(
+                success=True,
+                document_type="pdf",
+                file_path=str(pdf_path),
+                text_content=text_content,
+                images=images,
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    page_count=len(images),
+                    document_type="pdf"
+                )
+            )
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return ProcessingResult(
+                success=False,
+                document_type="pdf",
+                file_path=str(pdf_path),
+                text_content="",
+                images=[],
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    error_message=str(e)
+                ),
+                error_message=str(e)
+            )
+    
+    def _process_image_enhanced(self, image_path: Path, start_time: float) -> ProcessingResult:
+        """Enhanced image processing with better error handling"""
+        file_size = image_path.stat().st_size
+        
+        try:
+            # Load image
+            image = Image.open(image_path)
+            
+            # Extract text using OCR if enabled
+            text_content = ""
+            if self.config.processing.ocr_enabled:
+                try:
+                    text_content = pytesseract.image_to_string(image)
+                except Exception as e:
+                    print(f"⚠️  OCR extraction failed: {e}")
+                    text_content = ""
+            
+            images = [{
+                'page_number': 1,
+                'image_object': image,
+                'width': image.width,
+                'height': image.height,
+                'file_path': str(image_path)
+            }]
+            
+            processing_time = time.time() - start_time
+            
+            return ProcessingResult(
+                success=True,
+                document_type="image",
+                file_path=str(image_path),
+                text_content=text_content,
+                images=images,
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    page_count=1,
+                    document_type="image"
+                )
+            )
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return ProcessingResult(
+                success=False,
+                document_type="image",
+                file_path=str(image_path),
+                text_content="",
+                images=[],
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    error_message=str(e)
+                ),
+                error_message=str(e)
+            )
+    
+    def _process_html_enhanced(self, html_path: Path, start_time: float) -> ProcessingResult:
+        """Enhanced HTML processing with better error handling"""
+        file_size = html_path.stat().st_size
+        
+        try:
+            # Read HTML file
+            with open(html_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+            
+            # Parse HTML with BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Extract text content
+            text_content = soup.get_text(separator='\n', strip=True)
+            
+            # Find and process embedded base64 images
+            images = self._extract_base64_images(html_content, html_path)
+            
+            processing_time = time.time() - start_time
+            
+            return ProcessingResult(
+                success=True,
+                document_type="html",
+                file_path=str(html_path),
+                text_content=text_content,
+                images=images,
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    page_count=len(images),
+                    document_type="html"
+                )
+            )
+            
+        except Exception as e:
+            processing_time = time.time() - start_time
+            return ProcessingResult(
+                success=False,
+                document_type="html",
+                file_path=str(html_path),
+                text_content="",
+                images=[],
+                metadata=ProcessingMetadata(
+                    processing_time_seconds=processing_time,
+                    file_size_bytes=file_size,
+                    error_message=str(e)
+                ),
+                error_message=str(e)
+            )
     
     def _process_html(self, html_path: Path) -> Dict[str, Any]:
         """Process HTML file - extract text and embedded base64 images"""

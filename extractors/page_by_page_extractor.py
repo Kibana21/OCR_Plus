@@ -233,9 +233,17 @@ class PageByPageExtractor(BaseDataExtractor):
                           document_type: str, page_num: int) -> Dict[str, Any]:
         """Extract data from a single page using DSPy"""
         try:
+            # Log image information
+            print(f"   📸 Processing page {page_num} image:")
+            print(f"      - Image size: {page_image['width']}x{page_image['height']}")
+            print(f"      - Orientation corrected: {page_image.get('orientation_corrected', False)}")
+            print(f"      - Corrected image file: {page_image.get('file_path', 'N/A')}")
+            
             # Convert PIL image to dspy.Image
             import dspy
             image_obj = dspy.Image.from_PIL(page_image['image_object'])
+            
+            print(f"   🤖 Sending corrected image to LLM for extraction...")
             
             # Extract data using DSPy
             result = self.page_extractor(

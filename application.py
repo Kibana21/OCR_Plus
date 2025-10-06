@@ -18,15 +18,17 @@ from config import ConfigurationManager
 class OCRApplication:
     """Main application class that orchestrates the entire OCR processing system"""
     
-    def __init__(self, use_azure: bool = False, config_file: Optional[str] = None):
+    def __init__(self, use_azure: bool = False, config_file: Optional[str] = None, enable_orientation_correction: bool = True):
         """
         Initialize the OCR application
         
         Args:
             use_azure: Whether to use Azure OpenAI
             config_file: Optional path to configuration file
+            enable_orientation_correction: Whether to enable automatic orientation correction
         """
         self.use_azure = use_azure
+        self.enable_orientation_correction = enable_orientation_correction
         self.config_manager = ConfigurationManager(use_azure=use_azure, config_file=config_file)
         self.processor_factory = ProcessorFactory()
         self.extractor_factory = ExtractorFactory(
@@ -74,7 +76,10 @@ class OCRApplication:
             metadata = self._get_document_metadata(file_path)
             
             # Create appropriate processor
-            processor = self.processor_factory.create_processor(file_path)
+            processor = self.processor_factory.create_processor(
+                file_path, 
+                enable_orientation_correction=self.enable_orientation_correction
+            )
             
             # Process document
             processed_doc = processor.process_document(file_path)

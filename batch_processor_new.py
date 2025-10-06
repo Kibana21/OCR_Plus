@@ -17,12 +17,13 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python batch_processor_new.py --azure                    # Process all documents with page-by-page (default)
+  python batch_processor_new.py --azure                    # Process all documents with page-by-page and orientation correction (default)
   python batch_processor_new.py data/                     # Process all documents in data/
   python batch_processor_new.py --method chain_of_thought # Use specific extraction method
   python batch_processor_new.py --config config.env       # Use custom config file
   python batch_processor_new.py --no-save                 # Process without saving results
   python batch_processor_new.py --no-page-by-page         # Skip page-by-page extraction
+  python batch_processor_new.py --no-orientation-correction # Skip orientation correction
         """
     )
     
@@ -78,6 +79,12 @@ Examples:
     )
     
     parser.add_argument(
+        '--no-orientation-correction',
+        action='store_true',
+        help='Skip automatic orientation correction for rotated documents'
+    )
+    
+    parser.add_argument(
         '--verbose',
         action='store_true',
         help='Enable verbose output'
@@ -109,13 +116,15 @@ def main():
     print(f"🔧 Extraction Method: {args.method}")
     print(f"📄 Document Type: {args.type}")
     print(f"📄 Page-by-Page: {'Enabled (default)' if not args.no_page_by_page else 'Disabled'}")
+    print(f"🔄 Orientation Correction: {'Enabled (default)' if not args.no_orientation_correction else 'Disabled'}")
     print("=" * 60)
     
     try:
         # Initialize application
         app = OCRApplication(
             use_azure=args.azure,
-            config_file=args.config
+            config_file=args.config,
+            enable_orientation_correction=not args.no_orientation_correction
         )
         
         # Print configuration

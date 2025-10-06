@@ -13,6 +13,7 @@ import numpy as np
 
 from core.base_classes import BaseDocumentProcessor, DocumentType, ProcessingResult, DocumentMetadata
 from core.exceptions import DocumentProcessingError
+from core.image_preprocessing import ImagePreprocessor
 
 
 class ImageProcessor(BaseDocumentProcessor):
@@ -21,6 +22,8 @@ class ImageProcessor(BaseDocumentProcessor):
     def __init__(self, temp_dir: str = "temp_images"):
         super().__init__(temp_dir)
         self.supported_formats = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
+        self.image_preprocessor = ImagePreprocessor()
+        self.enable_orientation_correction = True  # Default to enabled
     
     def process_document(self, file_path: str) -> Dict[str, Any]:
         """
@@ -95,16 +98,34 @@ class ImageProcessor(BaseDocumentProcessor):
                 print(f"OCR extraction failed: {e}")
                 result['text_content'] = ""
             
-            # Enhance image for better processing
+            # Enhance image for better processing (includes orientation correction)
             enhanced_image = self._enhance_image(image)
+            
+            # Create corrected_images directory
+            corrected_dir = Path("corrected_images")
+            corrected_dir.mkdir(exist_ok=True)
+            
+            # Get document name for unique file naming
+            doc_name = image_path.stem
+            
+            # Save original image
+            original_filename = corrected_dir / f"{doc_name}_original.png"
+            image.save(original_filename, format='PNG')
+            
+            # Save corrected/enhanced image
+            corrected_filename = corrected_dir / f"{doc_name}_corrected.png"
+            enhanced_image.save(corrected_filename, format='PNG')
+            
+            print(f"💾 Saved corrected image: {corrected_filename.name}")
             
             result['images'] = [{
                 'page_number': 1,
-                'image_object': enhanced_image,
+                'image_object': enhanced_image,  # LLM gets the corrected image
                 'width': enhanced_image.width,
                 'height': enhanced_image.height,
-                'original_image': image,
-                'enhanced': True
+                'file_path': str(corrected_filename),
+                'original_file_path': str(original_filename),
+                'orientation_corrected': True
             }]
             
         except Exception as e:
@@ -114,7 +135,34 @@ class ImageProcessor(BaseDocumentProcessor):
         return result
     
     def _enhance_image(self, image: Image.Image) -> Image.Image:
-        """Enhance image quality for better OCR and vision processing"""
+        """Enhance image quality for better OCR and vision processing with orientation correction"""
+        try:
+            if self.enable_orientation_correction:
+                # Use the new image preprocessor for comprehensive enhancement
+                preprocessing_result = self.image_preprocessor.process_document_page(image)
+                
+                if preprocessing_result['processing_successful']:
+                    enhanced_image = preprocessing_result['processed_image']
+                    
+                    # Log orientation correction if applied
+                    if preprocessing_result['orientation_corrected']:
+                        print(f"🔄 Image orientation corrected: rotated {preprocessing_result['rotation_applied']}°")
+                    
+                    return enhanced_image
+                else:
+                    # Fallback to original enhancement if preprocessing fails
+                    print("⚠️  Using fallback image enhancement")
+                    return self._fallback_enhance_image(image)
+            else:
+                # Skip orientation correction, use fallback enhancement
+                return self._fallback_enhance_image(image)
+                
+        except Exception as e:
+            print(f"⚠️  Image preprocessing failed: {e}")
+            return self._fallback_enhance_image(image)
+    
+    def _fallback_enhance_image(self, image: Image.Image) -> Image.Image:
+        """Fallback image enhancement method"""
         try:
             # Convert to RGB if needed
             if image.mode != 'RGB':

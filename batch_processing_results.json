@@ -1,0 +1,38 @@
+{
+  "batch_info": {
+    "data_folder": "data",
+    "total_documents": 4,
+    "successful": 4,
+    "failed": 0,
+    "success_rate": "100.0%",
+    "total_time": 74.85661935806274,
+    "extraction_method": "auto",
+    "document_type": "auto"
+  },
+  "results": [
+    {
+      "file_path": "data/folder1/20250906171639963.pdf",
+      "success": true,
+      "processing_time": 17.206284999847412,
+      "error_message": null
+    },
+    {
+      "file_path": "data/folder1/AF22KB1231.pdf",
+      "success": true,
+      "processing_time": 13.00591492652893,
+      "error_message": null
+    },
+    {
+      "file_path": "data/folder1/Kartik - Estimate.pdf",
+      "success": true,
+      "processing_time": 43.603506088256836,
+      "error_message": null
+    },
+    {
+      "file_path": "data/folder1/data1.pdf",
+      "success": true,
+      "processing_time": 1.0409133434295654,
+      "error_message": null
+    }
+  ]
+}

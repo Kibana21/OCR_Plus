@@ -168,9 +168,16 @@ class BaseDocumentProcessor(IDocumentProcessor):
     def cleanup(self) -> None:
         """Clean up temporary files"""
         if self.temp_dir.exists():
+            # Delete all temporary files
             for file in self.temp_dir.iterdir():
-                file.unlink()
-            self.temp_dir.rmdir()
+                if file.is_file():
+                    file.unlink()
+            
+            # Remove temp directory if empty
+            try:
+                self.temp_dir.rmdir()
+            except OSError:
+                pass  # Directory not empty, that's fine
 
 
 class BaseDataExtractor(IDataExtractor):

@@ -50,13 +50,14 @@ class ProcessorFactory:
             self._processors[DocumentType.HTML] = HTMLProcessor
     
     @classmethod
-    def create_processor(cls, file_path: str, temp_dir: str = "temp_images") -> BaseDocumentProcessor:
+    def create_processor(cls, file_path: str, temp_dir: str = "temp_images", enable_orientation_correction: bool = True) -> BaseDocumentProcessor:
         """
         Create appropriate processor for the given file
         
         Args:
             file_path: Path to the document file
             temp_dir: Temporary directory for processing
+            enable_orientation_correction: Whether to enable orientation correction
             
         Returns:
             Appropriate document processor instance
@@ -83,7 +84,13 @@ class ProcessorFactory:
             raise UnsupportedFormatError(f"No processor available for document type: {doc_type}")
         
         # Create and return processor instance
-        return processor_class(temp_dir=temp_dir)
+        processor = processor_class(temp_dir=temp_dir)
+        
+        # Set orientation correction setting if the processor supports it
+        if hasattr(processor, 'enable_orientation_correction'):
+            processor.enable_orientation_correction = enable_orientation_correction
+        
+        return processor
     
     @classmethod
     def register_processor(cls, doc_type: DocumentType, processor_class: Type[BaseDocumentProcessor]):

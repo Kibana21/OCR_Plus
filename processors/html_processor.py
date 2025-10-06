@@ -119,21 +119,36 @@ class HTMLProcessor(BaseDocumentProcessor):
                     # Convert to PIL Image
                     image = Image.open(io.BytesIO(img_data))
                     
-                    # Enhance image quality
-                    image = self._enhance_image(image)
+                    # Enhance image quality (includes orientation correction)
+                    enhanced_image = self._enhance_image(image)
                     
-                    # Save individual image for debugging
-                    img_filename = self.temp_dir / f"{html_path.stem}_img_{i+1}.{img_format}"
-                    image.save(img_filename, format=img_format.upper())
+                    # Create corrected_images directory
+                    corrected_dir = Path("corrected_images")
+                    corrected_dir.mkdir(exist_ok=True)
+                    
+                    # Get document name for unique file naming
+                    doc_name = html_path.stem
+                    
+                    # Save original image
+                    original_filename = corrected_dir / f"{doc_name}_img_{i+1}_original.{img_format}"
+                    image.save(original_filename, format=img_format.upper())
+                    
+                    # Save corrected/enhanced image
+                    corrected_filename = corrected_dir / f"{doc_name}_img_{i+1}_corrected.{img_format}"
+                    enhanced_image.save(corrected_filename, format=img_format.upper())
+                    
+                    print(f"💾 Saved corrected image: {corrected_filename.name}")
                     
                     images.append({
                         'page_number': i + 1,
-                        'image_object': image,
-                        'width': image.width,
-                        'height': image.height,
+                        'image_object': enhanced_image,  # LLM gets the corrected image
+                        'width': enhanced_image.width,
+                        'height': enhanced_image.height,
                         'format': img_format,
-                        'file_path': str(img_filename),
-                        'source': 'base64_embedded'
+                        'file_path': str(corrected_filename),
+                        'original_file_path': str(original_filename),
+                        'source': 'base64_embedded',
+                        'orientation_corrected': True
                     })
                     
                 except Exception as e:

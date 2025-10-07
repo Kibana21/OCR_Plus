@@ -6,6 +6,7 @@ NO OpenCV orientation detection, NO heavy enhancement
 
 import os
 import time
+import json
 from typing import Dict, Any
 from pathlib import Path
 
@@ -31,17 +32,20 @@ class ImageProcessorAzureOnly(BaseDocumentProcessor):
     """Azure-only image processor"""
 
     def __init__(self, temp_dir: str = "temp_images",
-                 tilt_threshold: float = 5.0):
+                 tilt_threshold: float = 5.0,
+                 save_ground_truth: bool = False):
         """
         Initialize Azure-only image processor
 
         Args:
             temp_dir: Temporary directory
             tilt_threshold: Minimum angle to trigger correction
+            save_ground_truth: Save full Azure Document Intelligence response
         """
         super().__init__(temp_dir)
         self.supported_formats = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
         self.tilt_threshold = tilt_threshold
+        self.save_ground_truth = save_ground_truth
 
         if not AZURE_AVAILABLE:
             raise ImportError("Azure Document Intelligence not available")
@@ -59,8 +63,10 @@ class ImageProcessorAzureOnly(BaseDocumentProcessor):
             raise ValueError("Azure credentials not found")
 
         try:
-            self.azure_ocr = AzureOCREngine(azure_endpoint, azure_key)
+            self.azure_ocr = AzureOCREngine(azure_endpoint, azure_key, save_ground_truth=self.save_ground_truth)
             print(f"✅ Azure initialized (threshold: {self.tilt_threshold}°)")
+            if self.save_ground_truth:
+                print(f"   📊 Ground truth saving: ENABLED")
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Azure: {e}")
 
@@ -131,6 +137,13 @@ class ImageProcessorAzureOnly(BaseDocumentProcessor):
                 original_image, final_image, correction_info
             )
 
+            # Save ground truth if enabled
+            if self.save_ground_truth and 'azure_ground_truth' in correction_info:
+                self._save_ground_truth(
+                    image_path.stem,
+                    correction_info['azure_ground_truth']
+                )
+
             result['images'] = [{
                 'page_number': 1,
                 'image_object': final_image,
@@ -166,10 +179,16 @@ class ImageProcessorAzureOnly(BaseDocumentProcessor):
             else:
                 gray = image_np
 
-            # Detect angle
+            # Detect angle with Azure
             print(f"   🔍 Azure analyzing...")
             detected_angle = self.azure_ocr.get_page_angle(gray)
             correction_info['detected_angle'] = detected_angle
+
+            # Get full Azure response for ground truth if enabled
+            if self.save_ground_truth:
+                print(f"      📊 Getting full Azure response...")
+                full_response = self.azure_ocr.analyze_document_full(gray, page_num=1)
+                correction_info['azure_ground_truth'] = full_response
 
             print(f"      Angle: {detected_angle:.2f}°")
 
@@ -264,3 +283,19 @@ class ImageProcessorAzureOnly(BaseDocumentProcessor):
                 'original_path': None,
                 'final_path': None
             }
+
+    def _save_ground_truth(self, doc_name: str, azure_response: dict):
+        """Save Azure Document Intelligence full response as ground truth"""
+        ground_truth_dir = Path("ground_truth")
+        ground_truth_dir.mkdir(exist_ok=True)
+
+        output_file = ground_truth_dir / f"{doc_name}_azure_ground_truth.json"
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(azure_response, f, indent=2, ensure_ascii=False)
+
+        # Show stats
+        avg_conf = azure_response.get('average_confidence', 0.0)
+        word_count = len(azure_response.get('pages', [{}])[0].get('words', []))
+        print(f"      💾 Saved ground truth: {output_file.name}")
+        print(f"         Words: {word_count}, Avg Confidence: {avg_conf:.3f}")

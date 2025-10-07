@@ -13,6 +13,7 @@ Philosophy:
 import io
 import os
 import time
+import json
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
@@ -50,7 +51,9 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
 
     def __init__(self, temp_dir: str = "temp_images",
                  tilt_threshold: float = 5.0,
-                 save_all: bool = False):
+                 save_all: bool = False,
+                 save_ground_truth: bool = False,
+                 dpi: int = 300):
         """
         Initialize Azure-only PDF processor
 
@@ -58,11 +61,15 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
             temp_dir: Temporary directory for processing
             tilt_threshold: Minimum angle (degrees) to trigger correction (default: 5.0)
             save_all: Save all pages even if not corrected (default: False)
+            save_ground_truth: Save full Azure Document Intelligence response (default: False)
+            dpi: DPI for PDF to image conversion (default: 300 for high quality OCR)
         """
         super().__init__(temp_dir)
         self.supported_formats = {'pdf'}
         self.tilt_threshold = tilt_threshold
         self.save_all = save_all
+        self.save_ground_truth = save_ground_truth
+        self.dpi = dpi
 
         # Initialize Azure OCR
         if not AZURE_AVAILABLE:
@@ -85,9 +92,12 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
             )
 
         try:
-            self.azure_ocr = AzureOCREngine(azure_endpoint, azure_key)
+            self.azure_ocr = AzureOCREngine(azure_endpoint, azure_key, save_ground_truth=self.save_ground_truth)
             print(f"✅ Azure Document Intelligence initialized")
             print(f"   Correction threshold: {self.tilt_threshold}°")
+            print(f"   DPI: {self.dpi}")
+            if self.save_ground_truth:
+                print(f"   📊 Ground truth saving: ENABLED")
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Azure: {e}")
 
@@ -169,12 +179,20 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
                 page = pdf_document[page_num]
 
                 # Convert page to high-quality image
-                mat = fitz.Matrix(2.0, 2.0)  # 2x zoom = ~144 DPI
+                # Use configurable DPI (default 300 for high-quality OCR)
+                zoom = self.dpi / 72.0  # PDF is 72 DPI by default
+                mat = fitz.Matrix(zoom, zoom)
                 pix = page.get_pixmap(matrix=mat)
 
                 # Convert to PIL Image
                 img_data = pix.tobytes("png")
                 original_image = Image.open(io.BytesIO(img_data))
+
+                # Check image size (Azure has 50MB limit for images)
+                img_size_mb = len(img_data) / (1024 * 1024)
+                if img_size_mb > 40:  # Warn at 40MB (safety margin)
+                    print(f"      ⚠️  Large image: {img_size_mb:.1f}MB (may exceed Azure limits)")
+                    print(f"      💡 Consider using --dpi 300 or lower")
 
                 print(f"\n📄 Page {page_num + 1}/{pdf_document.page_count}:")
 
@@ -199,6 +217,13 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
                     pdf_path.stem, page_num + 1,
                     original_image, final_image, correction_info
                 )
+
+                # Save ground truth if enabled
+                if self.save_ground_truth and 'azure_ground_truth' in correction_info:
+                    self._save_ground_truth(
+                        pdf_path.stem, page_num + 1,
+                        correction_info['azure_ground_truth']
+                    )
 
                 image_data.append({
                     'page_number': page_num + 1,
@@ -250,8 +275,27 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
 
             # Detect angle with Azure
             print(f"   🔍 Azure analyzing...")
-            detected_angle = self.azure_ocr.get_page_angle(gray)
-            correction_info['detected_angle'] = detected_angle
+            try:
+                detected_angle = self.azure_ocr.get_page_angle(gray)
+                correction_info['detected_angle'] = detected_angle
+
+                # Get full Azure response for ground truth if enabled
+                if self.save_ground_truth:
+                    print(f"      📊 Getting full Azure response...")
+                    full_response = self.azure_ocr.analyze_document_full(gray, page_num)
+                    correction_info['azure_ground_truth'] = full_response
+
+            except Exception as e:
+                error_msg = str(e)
+                if "InvalidContentLength" in error_msg or "too large" in error_msg.lower():
+                    print(f"      ⚠️  Image too large for Azure (DPI: {self.dpi})")
+                    print(f"      💡 Tip: Try --dpi 300 or --dpi 150")
+                    # Continue without Azure detection
+                    detected_angle = 0.0
+                    correction_info['detected_angle'] = 0.0
+                    correction_info['azure_error'] = 'image_too_large'
+                else:
+                    raise
 
             # Classify severity
             abs_angle = abs(detected_angle)
@@ -390,6 +434,31 @@ class PDFProcessorAzureOnly(BaseDocumentProcessor):
                 'original_path': None,
                 'final_path': None
             }
+
+    def _save_ground_truth(self, doc_name: str, page_num: int, azure_response: dict):
+        """
+        Save Azure Document Intelligence full response as ground truth
+
+        Creates JSON file with complete Azure output including:
+        - Full extracted text
+        - Word-level confidence scores
+        - Bounding boxes for all words and lines
+        - Paragraph grouping
+        """
+        ground_truth_dir = Path("ground_truth")
+        ground_truth_dir.mkdir(exist_ok=True)
+
+        page_str = f"{page_num:03d}"
+        output_file = ground_truth_dir / f"{doc_name}_page_{page_str}_azure_ground_truth.json"
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(azure_response, f, indent=2, ensure_ascii=False)
+
+        # Show stats
+        avg_conf = azure_response.get('average_confidence', 0.0)
+        word_count = len(azure_response.get('pages', [{}])[0].get('words', []))
+        print(f"      💾 Saved ground truth: {output_file.name}")
+        print(f"         Words: {word_count}, Avg Confidence: {avg_conf:.3f}")
 
     def _print_summary(self, summary: Dict):
         """Print processing summary"""

@@ -3,32 +3,9 @@
   "threshold": 5.0,
   "results": [
     {
-      "file": "data/folder1/20250906171639963.pdf",
+      "file": "data/folder1/test.jpg",
       "success": true,
-      "corrections": {
-        "total_pages": 5,
-        "corrected_pages": 0,
-        "angles_detected": [
-          0,
-          0,
-          -0.120899997651577,
-          -0.1339000016450882,
-          -0.11840000003576279
-        ],
-        "corrections_applied": []
-      }
-    },
-    {
-      "file": "data/folder1/AF22KB1231.pdf",
-      "success": true,
-      "corrections": {
-        "total_pages": 1,
-        "corrected_pages": 0,
-        "angles_detected": [
-          0
-        ],
-        "corrections_applied": []
-      }
+      "corrections": {}
     },
     {
       "file": "data/folder1/data2.pdf",
@@ -37,12 +14,12 @@
         "total_pages": 1,
         "corrected_pages": 1,
         "angles_detected": [
-          -179.75929260253906
+          180
         ],
         "corrections_applied": [
           {
             "page": 1,
-            "angle": -179.75929260253906
+            "angle": 180
           }
         ]
       }
@@ -54,12 +31,12 @@
         "total_pages": 1,
         "corrected_pages": 1,
         "angles_detected": [
-          -90
+          -89.9563980102539
         ],
         "corrections_applied": [
           {
             "page": 1,
-            "angle": -90
+            "angle": -89.9563980102539
           }
         ]
       }

@@ -18,6 +18,25 @@ data/
 *.xlsx
 *.xls
 
+# Understandings (Sensitive Documents)
+understanding/
+*.md
+
+# Data Files (Sensitive Documents)
+ground_truth/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.json
+
+
 # Python
 __pycache__/
 *.py[cod]

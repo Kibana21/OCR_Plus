@@ -90,6 +90,19 @@ Examples:
         help='Verbose output'
     )
 
+    parser.add_argument(
+        '--save-ground-truth',
+        action='store_true',
+        help='Save full Azure Document Intelligence output as ground truth for DSPy experiments'
+    )
+
+    parser.add_argument(
+        '--dpi',
+        type=int,
+        default=300,
+        help='DPI for PDF to image conversion (default: 300 for high quality)'
+    )
+
     return parser
 
 
@@ -134,11 +147,14 @@ def process_directory(data_folder: Path, args) -> list:
             # Create appropriate processor
             if file_path.suffix.lower() == '.pdf':
                 processor = PDFProcessorAzureOnly(
-                    tilt_threshold=args.tilt_threshold
+                    tilt_threshold=args.tilt_threshold,
+                    save_ground_truth=args.save_ground_truth,
+                    dpi=args.dpi
                 )
             else:
                 processor = ImageProcessorAzureOnly(
-                    tilt_threshold=args.tilt_threshold
+                    tilt_threshold=args.tilt_threshold,
+                    save_ground_truth=args.save_ground_truth
                 )
 
             # Process document

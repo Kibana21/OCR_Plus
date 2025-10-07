@@ -243,3 +243,4 @@ This object-oriented architecture provides a solid foundation for the OCR docume
 
 
 python batch_processor_new.py --azure --page-by-page
+kartik

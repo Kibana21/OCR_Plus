@@ -1,10 +1,8 @@
 """
-Document processors module with proper OOP structure
+Document processors module - Azure-only
 """
 
-# Import only the factory for now to avoid heavy dependencies
-from .processor_factory import ProcessorFactory
+# Azure-only processors (import directly in batch_processor_azure_only.py)
+# No factory needed - processors are created directly
 
-__all__ = [
-    'ProcessorFactory'
-]
+__all__ = []
